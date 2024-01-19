@@ -1,0 +1,351 @@
+---
+title: "FDS Course Work 1"
+subtitle: Solution Template
+date: "2023-10-31"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(here)
+library(janitor)
+library(glue)
+
+default_answer = NA
+```
+
+## Instructions
+
+This is the RMD file you will edit and submit for your coursework. Please save the edited file with the same name as this one but with your user name (i.e. university log in name, not student number) added to the beginning, e.g. "pk255_MA3419_CW1.Rmd" You will need to create a PDF file labelled in the same way: e.g. "pk255_MA3419_CW1.pdf".
+
+Complete the course work by adding code where needed and typing text between the horizontal lines where indicated. You should not need to add any new code chunks. Many code chunks contain a variable called `default`answer` (which is NA). This is what you will need to replace with your own code.
+
+Marks indicated for each section are out of a total of 80. There are 5 marks for submitting code that runs and knits and 5 for submitting a two files with the correct names and format. To show that your code runs, you should include some (appropriate) output below each code chunk. This should clearly show (when viewed in the PDF) that the code has produced the required result.
+
+There are also 5 marks for the overall standard of your code i.e. is it laid out neatly and readable; have you been consistent in your your use of tidyverse functions etc.
+
+There is an additional file on Blackboard called C1_InfoAndHints which gives more advice on what marks are awarded for. Please check this regularly because I may update it with the answers to any significant questions I get.
+
+This work comprises 30% of the total assessment for the module.
+
+__It is very important that you work on your own for this assessment. No collaboration is allowed and anyone found doing so will be subject to the penalties in the University Regulations (they are very severe). Anti-plagiarism software will be used for this submission.__
+
+If you get __completely__ stuck contact me and I will give you some guidance - if that will result in the loss of any marks I will tell you and give you the choice to continue on your own.
+
+You must email me your RMD file and submit your PDF file on Turnitin by 16:00 on Wednesday 15 November. (Note, this is an extension of two days on the deadline originally given.)
+
+#### Load Data
+
+October expenditure data for Leicester City Council: https://data.leicester.gov.uk/explore/dataset/expenditure-exceeding-gbp500-2023/export/?disjunctive.department&disjunctive.purpose_of_expenditure&disjunctive.merchant_category
+
+```{r load_data}
+
+Leics2023 <- read_excel(here("Data", "Leics-exceeding-gbp500-2023.xlsx"))
+Leics2022 <- read_excel(here("Data", "Leics-exceeding-ps500-2022.xlsx"))
+Leics2021 <- read_excel(here("Data", "Leics-exceeding-ps500-2021.xlsx"))
+Leics2020 <- read_excel(here("Data", "Leics-exceeding-ps500-2020.xlsx"))
+
+```
+
+### Join the four data frames with 'bind_rows()'. [2 marks]
+
+```{r bind_rows}
+
+Leics <- bind_rows(Leics2023, Leics2022, Leics2021, Leics2020)
+
+# Question 1: How many rows are there in the combined data frame? [1 mark]
+answer <- nrow(Leics)
+
+glue("Answer 1, number of rows: {answer}")
+
+```
+### Clean the column names with the 'janitor' package (use big_camel case) and print the names. [3 marks]
+
+```{r clean_names}
+
+Leics <- Leics %>%
+  
+ clean_names(case = "big_camel")
+
+ names(Leics)
+
+# Question 2: How does the column name that was originally "Purpose of expenditure" appear 
+# after the names have been cleaned? [1 mark]
+
+answer <- colnames(Leics)[4] 
+
+ glue("Answer 2: {answer}")
+```
+
+### Use mutate and the lubridate package to convert the type of PaymentDate to Date and create two new columns "Year" and "Month" containing the year and month number of each payment. [5 marks]
+
+```{r dates}
+
+library(lubridate)
+
+Leics$PaymentDate <- ymd(Leics$PaymentDate)
+
+Leics <- Leics %>%
+ mutate(Year = year(PaymentDate), Month = month(PaymentDate))
+```
+
+### Print the class of the PaymentDate column and the maximum and minimum values. [2 marks]
+
+```{r date_type_max_min}
+
+class(Leics$PaymentDate)
+min(Leics$PaymentDate)
+max(Leics$PaymentDate)
+```
+
+### Use the count function to list the top 10 beneficiaries (by number of payments). Save this in a data frame called beneficiaries. [2 marks]
+
+```{r count_beneficiaries}
+
+beneficiaries <- Leics %>%
+ count(Beneficiary, sort = TRUE) %>%
+ top_n(10)
+
+# Question 3: What is the name of the beneficiary with the eighth highest 
+# number of payments. [1 mark]
+
+eighth_highest_name_of_beneficiary <- Leics %>%
+ count(Beneficiary, sort = TRUE) %>%
+ slice(8)
+
+answer <- eighth_highest_name_of_beneficiary$Beneficiary
+
+glue("Answer 3: eighth beneficiary by number of payments: {answer}")
+```
+
+### Use a regular expression to filter the Leics data frame so that it only contains row where the PurposeOfExpenditure includes the word "care", irrespective of case. (Not "carer." Create a new data frame called Leics_care for this data.) [5 marks]
+
+
+```{r filter_care}
+
+library(stringr)
+
+Leics_care <- Leics %>%
+ filter(str_detect(PurposeOfExpenditure, "\\b(?i)care\\b")) 
+
+#I assumed that care in "Healthcare" is not separate word and so, I eliminated it.
+
+# Question 4: How many rows are there in this data frame? [1 mark]
+answer <- nrow(Leics_care)
+
+ glue("Answer 4, number of rows: {answer}")
+```
+
+### Group the data by Beneficiary and calculate the total amount paid to each Beneficiary. Call this data frame top_beneficiaries and print the first 5 rows of the sorted dataframe. [5 marks]
+
+```{r beneficiary_totals}
+
+top_beneficiaries <- Leics %>%
+ group_by(Beneficiary) %>%
+ summarise(Total_amount_paid = sum(Amount)) %>%
+ arrange(desc(Total_amount_paid))
+
+print(head(top_beneficiaries, 5))
+
+# Question 5: Who is the top beneficiary, by total amount? [1 mark]
+top_beneficiary <- top_beneficiaries %>%
+ slice(1)
+
+answer <- top_beneficiary$Beneficiary
+
+
+glue("Answer 5, top beneficiary: {answer}")
+```
+
+
+
+### Group by year and month (in that order) and calculate the sum of all payments in each month for each year. Create a new data frame called LeicsYrTotals for this grouped data. [_The total should be in a column called MonthTotal and you should include the parameter .groups = "drop_last" in your summarise function._] [3 marks]
+
+```{r month_totals}
+
+LeicsYrTotals <- Leics %>%
+ group_by(Year, Month) %>%
+ summarise(MonthTotal = sum(Amount), .groups = "drop_last")
+
+print(LeicsYrTotals)
+```
+### LeicsYrTotals is still grouped by Year. Apply summarise() again to calculate the number of months in each year and the total payment in each year. [_Include the parameter .groups = "drop"_.] [2 marks]
+
+```{r year_totals}
+
+LeicsYrTotals1 <- LeicsYrTotals %>%
+  summarise(NumMonths = n(), YearTotal = sum(MonthTotal), .groups = "drop")
+
+print(LeicsYrTotals1)
+```
+
+### Create a column "AnnualisedTotal" that adjusts the year total to account for the number of months of data. Call your new data frame LeicsAnnTotals. [2 marks]
+
+```{r annualised_totals}
+
+LeicsAnnTotals <- LeicsYrTotals1 %>%
+ mutate(AnnualisedTotal = YearTotal / NumMonths * 12)
+  
+print(LeicsAnnTotals)
+```
+### Plot a line chart showing the annualised expenditure for each year. [6 marks]
+
+```{r graph_annualised_expenditure}
+
+plot_1 <- ggplot(LeicsAnnTotals, aes(x = Year, y = AnnualisedTotal)) + 
+  geom_line(color = "Blue", size = 1.5) +
+  geom_point(color = "Blue", size = 3, show.legend = FALSE) +
+  theme_minimal() + 
+  
+  # I have used ChatGpt in this part for developing my code and for improving my 
+  # graph's visualization.For example, I asked from ChatGpt how I can add title, 
+  # write source of the data and give names to axis and etc. After ChatGpt updated 
+  # this code I analyzed the final code for fully understanding its meaning.
+  
+  labs(
+    title = "Annual Expenditures Over the Years",
+    x = "Year",
+    y = "Annual Expenditures",
+    caption = "Source: Leicester City Council"
+  ) +
+  scale_y_continuous(
+    labels = scales::comma_format()
+  )
+
+print(plot_1)
+
+```
+
+### Comment on your plot of annualised expenditure. [6 marks]
+
+---
+This graph shows annual expenditures of Leicester City Council from 2020 until 2023. We can see from the graph that 
+annual expenditure increases sharply from roughly 390 mln. to 498 mln between 2020 and 2022. But, in 2023, we see 
+slight decrease in this trend. But I think it may not be downward trend if we would have real expenses of last quarter 
+of 2023. Because we do not have real expenditure amounts of that period, we just predicted last 3 months of 2023 by 
+finding average monthly expenditure amount and then applied it proportionally for the month of 10, 11 and 12 of 2023. 
+If we look through previous years last quarter expenditures they are generally are higher than previous quarters. 
+Generally, organizations which their budgets funded by governments try to spend cautiously at the first months of 
+the year and spend more money in the last months of the budget years.  So, if we would have real data of last 
+quarter expenditures of 2023, we can observe higher annual expenditures in 2023 than all previous years. 
+We can dive and prognoses the last quarter of 2023 expenditures by comparing all previous years last 
+quarter expenditures.
+---
+
+### Use just the three years for which you have 12 months of data. Group by month and calculate the sum of all payments in each month. Call this LeicsMonthTotals and print it. [2 marks]
+
+```{r month_totals2}
+
+LeicsMonthTotals <- Leics %>%
+  filter(Year < 2023) %>%
+  group_by(Month) %>%
+  summarise(Monthly_payments = sum(Amount))
+
+print(LeicsMonthTotals)
+```
+
+### Calculate the average for each month (across all three years). Call this LeicsMonthMeans and print it.[1 mark]
+
+```{r month_means}
+
+LeicsMonthMeans <- LeicsMonthTotals %>%
+  mutate(Average_Monthly_payments = Monthly_payments / 3)
+  
+print(LeicsMonthMeans)
+```
+### Plot a line chart showing the 12 monthly totals as a separate line for each of the three years and as a separate line for the average amount for each month.[8 marks]
+
+```{r graph_monthly_expenditure}
+
+# I have used ChatGpt in this code also for developing my code and for improving 
+# my graph's visualization. For example, I asked from ChatGpt how I can add title, 
+# write source of the data and give names to axis and etc. After ChatGpt updated 
+# this code I analyzed the final code for fully understanding its meaning.
+
+Leics1 <- LeicsYrTotals %>%
+filter(Year < 2023) 
+
+plot_2 <- ggplot() +
+  
+  # Firstly I added Line and point geom for Leics1 dataset
+  geom_line(
+    data = Leics1, 
+    aes(x = Month, y = MonthTotal, color = as.factor(Year), group = Year),
+    linetype = "solid", size = 1
+  ) +
+  geom_point(
+    data = Leics1, 
+    aes(x = Month, y = MonthTotal, color = as.factor(Year)),
+    size = 3, alpha = 0.7
+  ) +
+  
+  # Then in order to show the 4th line (Average_Monthly_payments) in same graph I added 
+  # Line and point geom for LeicsMonthMeans data set
+  geom_line(
+   data = LeicsMonthMeans, 
+   aes(x = Month, y = Average_Monthly_payments, color = "3 Years Average Payments"),
+    linetype = "dashed", color = "blue", size = 1.5
+  ) +
+  geom_point(
+    data = LeicsMonthMeans, 
+    aes(x = Month, y = Average_Monthly_payments, color = "3 Years Average Payments"),
+    color = "blue", size = 3, shape = 15
+  ) +
+  
+  # I made some modification for increasing readability of x and y axis. In x axis, 
+  # I changed numbers (1 to 12) to months and in y axis I extended figures to millions
+  
+  scale_x_continuous(breaks = 1:12, labels = month.abb) + 
+  scale_y_continuous(labels = scales::comma_format()) + 
+  
+  # Theme and other adjustments (I added some titles and subtitles to the graph)
+  labs(
+    title = "Monthly Expenses Analysis",
+    subtitle = "Comparison of Total Expenses with 3 Years Average Expenses (dash.line)",
+    x = "Month",
+    y = "Total Expenses",
+    color = "Years"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12, face = "italic"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10)
+  ) +
+  
+  # Legend title
+  guides(color = guide_legend(title = "Years"))
+
+print(plot_2)
+
+```
+
+### Comment on your chart of expenditure per month. [6 marks]
+
+---
+From the graph, we observe that Leicester City Council 2022 total expenses is higher than 3 years (2020, 2021 and 2022) 
+average monthly expenses except the month of December. in January of 2022, the expenses were just over 30 mln. and 
+this increased until March to over 50 mln. and then showed downward trend until June which decreased that year's 
+minimum point of approximately 34 mln. After that time, this indicator showed some fluctuations until October and
+increased sharply and reached its and also all 3 years maximum of 60 mln and then plummet down roughly just under
+40 mln and also first time in that year it decreased under average expenses of 3 years.
+2021 monthly expenses show almost similar trend with 3 years average monthly expense trend. The expenses in 2021 
+were higher than average indicator from January of 2021 until March and December of that year. From March 2021, 
+the monthly expenses start about 42 mln and were under average indicator until mid of December and exceeded the
+average after that time and reached its maximum point of 50 mln.
+In 2020, the monthly expenses show volatility , but most time of that year the expense figures were under average
+(maybe because of Covid 19).The expenses were roughly 24 mln in January of 2020 which were minimum of all 3 years 
+indicators. Then after slight decrease,this increased sharply to 37 mln and then decreased its minimum point of just
+over 21 mln and from that point it rocketed up and passed the average indicator first time in that year and reached 
+its maximum point of 50 mln. and then it decreased significantly and again got under the average until the end of that
+year except the month of September.
+---
+
